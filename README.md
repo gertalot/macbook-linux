@@ -321,33 +321,4 @@ touch /etc/acpi/lid.sh
 chmod +x /etc/acpi/lid.sh
 nano /etc/acpi/lid.sh
 ```
-
-### Audio
-
-
-
-### Touch Bar
-
-```sh
-apt-get install git dkms
-
-cd ~
-echo -e "\n# macbook12-spi-drivers\napplespi\napple_ib_tb\nspi_pxa2xx_platform\nintel_lpss_pci" >> /etc/initramfs-tools/modules
-
-git clone https://github.com/roadrunner2/macbook12-spi-driver.git
-cd ./macbook12-spi-driver
-git checkout touchbar-driver-hid-driver
-dkms add .
-CASPER_GENERATE_UUID=1 dkms install -m applespi -v 0.1 -k $(realpath /boot/vmlinuz | sed 's#/boot/vmlinuz-##g')
-
-# lsinitramfs /boot/initrd.img | grep -i "dkms/apple"
-usr/lib/modules/5.8.0-50-generic/updates/dkms/apple-ib-tb.ko
-usr/lib/modules/5.8.0-50-generic/updates/dkms/apple-ibridge.ko
-usr/lib/modules/5.8.0-50-generic/updates/dkms/applespi.ko
 ````
-
-### Keyboard backlight
-
-```
-
-```
