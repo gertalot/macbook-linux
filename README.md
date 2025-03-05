@@ -32,13 +32,6 @@ I did this on a spare laptop, so started from a clean slate:
 
 After installing, follow the prompts and go to Settings -> General -> Software update and install any updates.
 
-## Partition drive
-
-- Open Disk Utility, click "Partition"
-- Reduce the one partion's size to 32Gb. We'll install Linux on the freed up space.
-
-(NOTE: is this actually necessary?)
-
 ## Create install media
 
 Download [Ubuntu 24.0.2 Server ISO from NZ 2degrees mirror](https://mirror.2degrees.nz/ubuntu-releases/24.04.2/ubuntu-24.04.2-live-server-amd64.iso):
@@ -225,19 +218,21 @@ Once loaded, let's get some wifi! Open a terminal and:
 
 ```sh
 # install the tool that can install the firmware
-sudo dpkg -i /cdrom/pool/main/b/b43-fwcutter/b43-fwcutter_1%3a019-11build1_amd64.deb
+dpkg -i /cdrom/pool/main/b/b43-fwcutter/b43-fwcutter_1%3a019-11build1_amd64.deb
 # install the firmware
+cd /tmp
 tar xzvf /cdrom/pool/main/b/broadcom-wl-5.100.138.tar.gz
-sudo b43-fwcutter -w /lib/firmware broadcom-wl-5.100.138/linux/wl_apsta.o
-sudo modprobe b43
+b43-fwcutter -w /lib/firmware broadcom-wl-5.100.138/linux/wl_apsta.o
+modprobe b43
 ```
 
 Set the transmit power:
 
 ```sh
-sudo dpkg -i '/cdrom/pool/main/w/wireless-tools_30~pre9-16.1ubuntu2_amd64.deb'
+dpkg -i '/cdrom/pool/main/libi/libiw30t64_30~pre9-16.1ubuntu2_amd64.deb'
+dpkg -i '/cdrom/pool/main/w/wireless-tools_30~pre9-16.1ubuntu2_amd64.deb'
 # for the actual interface name, do iwconfig. For me it's wlp3s0
-sudo iwconfig wlp3s0 txpower 10dBm
+iwconfig wlp3s0 txpower 10dBm
 ```
 
 Open settings, turn wifi off/on, and connect to the network you want. It should work now.
@@ -246,29 +241,24 @@ With WiFi operational, follow the steps to install Ubuntu.
 
 ### Boot into Ubuntu
 
-Boot your laptop, and connect to the internet hopefully.
+### enable wifi again
 
-### Set txpower at boot
-
-You may need to do (although I'm not sure why yet):
-
-```sh
-sudo iwconfig wlp3s0 txpower 10dBm
-```
-
-Then ensure you have everything installed:
+Boot your laptop, and connect to the internet hopefully. If it doesn't connect, go ahead
+and install the tools from before. Plug in the usb drive and:
 
 ```sh
-sudo apt install firmware-b43-installer
-
-sudo apt install linux-firmware
-sudo modprobe b43
+mkdir /mnt/ext
+mount /dev/sdc /mnt/ext
+dpkg -i '/cdrom/pool/main/libi/libiw30t64_30~pre9-16.1ubuntu2_amd64.deb'
+dpkg -i '/cdrom/pool/main/w/wireless-tools_30~pre9-16.1ubuntu2_amd64.deb'
+# for the actual interface name, do iwconfig. For me it's wlp3s0
+iwconfig wlp3s0 txpower 10dBm
 ```
 
 To set `txpower` automatically at boot time, do the following:
 
 ```sh
-sudo vi /etc/systemd/system/set-wifi-txpower.service
+vi /etc/systemd/system/set-wifi-txpower.service
 ```
 
 Set the contents to (change `wlp3s0` to the wifi interface name you have):
@@ -292,6 +282,45 @@ Then enable and start the service:
 ````sh
 systemctl enable set-wifi-txpower.service
 systemctl start set-wifi-txpower.service
+
+
+### make screen more readable
+
+the letters are tiny and the screen is too dim. You can do:
+
+```sh
+setpci -v -H1 -s 00:01.00 BRIDGE_CONTROL=0
+echo 800 > /sys/class/backlight/gmux_backlight/brightness
+```
+
+to increase brightness. To increase the font size, edit `/etc/default/console-setup` and
+set `FONT_SIZE` to `16x32`. Reboot for it to take effect.
+
+### Run with lid closed
+
+Edit `/etc/systemd/logind.conf` and change the following options:
+
+```txt
+HandleLidSwitch=ignore
+HandleLidSwitchExternalPower=ignore
+LidSwitchIgnoreInhibited=no
+```
+
+To shut off the display after 5 minutes, edit `/etc/default/grub`, and change the following line:
+
+```txt
+GRUB_CMDLINE_LINUX_DEFAULT=consoleblank=600
+```
+Reboot for the changes to take effect.
+
+```txt
+apt-get install acpi-support vbetool
+echo "event=button/lid.*" | tee -a /etc/acpi/events/lid-button
+echo "action=/etc/acpi/lid.sh" | tee -a /etc/acpi/events/lid-button
+touch /etc/acpi/lid.sh
+chmod +x /etc/acpi/lid.sh
+nano /etc/acpi/lid.sh
+```
 
 ### Audio
 
