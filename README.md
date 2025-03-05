@@ -279,10 +279,10 @@ WantedBy=multi-user.target
 
 Then enable and start the service:
 
-````sh
+```sh
 systemctl enable set-wifi-txpower.service
 systemctl start set-wifi-txpower.service
-
+```
 
 ### make screen more readable
 
@@ -311,6 +311,7 @@ To shut off the display after 5 minutes, edit `/etc/default/grub`, and change th
 ```txt
 GRUB_CMDLINE_LINUX_DEFAULT=consoleblank=600
 ```
+
 Reboot for the changes to take effect.
 
 ```txt
@@ -321,4 +322,7 @@ touch /etc/acpi/lid.sh
 chmod +x /etc/acpi/lid.sh
 nano /etc/acpi/lid.sh
 ```
-````
+
+```
+
+```
