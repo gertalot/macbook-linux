@@ -13,7 +13,7 @@ These instructions are fully based on the following sources:
 - [using xorriso](https://askubuntu.com/questions/1110651/how-to-produce-an-iso-image-that-boots-only-on-uefi)
 - [custom bootable iso with xorriso](https://www.0xf8.org/2020/03/recreating-isos-that-boot-from-both-dvd-and-mass-storage-such-as-usb-sticks-and-in-both-legacy-bios-and-uefi-environments/)
 
-This is working as of December 2024.
+This is working as of March 2025.
 
 ## Prerequisites
 
@@ -41,10 +41,10 @@ After installing, follow the prompts and go to Settings -> General -> Software u
 
 ## Create install media
 
-Download [Ubuntu 24.0.1 ISO from NZ 2degrees mirror](https://mirror.2degrees.nz/ubuntu-releases/24.04.1/ubuntu-24.04.1-desktop-amd64.iso):
+Download [Ubuntu 24.0.2 Server ISO from NZ 2degrees mirror](https://mirror.2degrees.nz/ubuntu-releases/24.04.2/ubuntu-24.04.2-live-server-amd64.iso):
 
 ```sh
-curl -O https://mirror.2degrees.nz/ubuntu-releases/24.04.1/ubuntu-24.04.1-desktop-amd64.iso
+curl -O https://mirror.2degrees.nz/ubuntu-releases/24.04.2/ubuntu-24.04.2-live-server-amd64.iso
 ```
 
 Download [Etcher](https://etcher.balena.io/).
@@ -81,16 +81,23 @@ That should show something like:
 Note the chip ID `BCM43602`, PCI ID `14e4:43ba`, and the revision `rev 02`. Looking at [the wireless driver table](https://askubuntu.com/questions/55868/installing-broadcom-wireless-drivers),
 that corresponds to the driver `firmware-b43-installer/linux-firmware`.
 
-#### Download the firmware
+#### Download the firmware and wireless packages
 
 If you have an Internet connection, you can use the `firmware-b43-installer` package.
 The installer in that package will download the broadcom firmware and install it. Since
-we're installing offline, download the firmware from the same URL ahead of time. We will
-add it to the ISO so we can install it later.
+we're installing offline, download the firmware and a few other needed packages from the
+same URL ahead of time. We will add it to the ISO so we can install it later.
 
 ```sh
-curl -O https://www.lwfinger.com/b43-firmware/broadcom-wl-5.100.138.tar.bz2
+curl -LO 'https://www.lwfinger.com/b43-firmware/broadcom-wl-5.100.138.tar.bz2'
+curl -LO 'http://mirrors.kernel.org/ubuntu/pool/main/b/b43-fwcutter/b43-fwcutter_019-4_amd64.deb'
+curl -LO 'http://mirrors.kernel.org/ubuntu/pool/main/w/wireless-tools/libiw30t64_30~pre9-16.1ubuntu2_amd64.deb'
+curl -LO 'http://mirrors.kernel.org/ubuntu/pool/main/w/wireless-tools/wireless-tools_30~pre9-16.1ubuntu2_amd64.deb'
+tar xjvf broadcom-wl-5.100.138.tar.bz2
+tar czvf broadcom-wl-5.100.138.tar.gz broadcom-wl-5.100.138
 ```
+
+(note: we're repackaging the .bz2 file because the instll media has no bzip2).
 
 #### edit iso
 
@@ -101,14 +108,14 @@ Download Ubuntu:
 
 ```sh
 # Download ubuntu from a NZ mirror (change this if you're not in New Zealand)
-curl -O https://mirror.2degrees.nz/ubuntu-releases/24.04.1/ubuntu-24.04.1-desktop-amd64.iso
+curl -O https://mirror.2degrees.nz/ubuntu-releases/24.04.2/ubuntu-24.04.2-live-server-amd64.iso
 ```
 
 Mount the iso:
 
 ```sh
 mkdir mnt
-hdiutil attach -nomount ubuntu-24.04.1-desktop-amd64.iso
+hdiutil attach -nomount ubuntu-24.04.2-live-server-amd64.iso
 # check what device the above command attaches to. For me it's /dev/disk4
 mount -t cd9660 /dev/disk4 mnt
 ```
@@ -119,8 +126,10 @@ Copy the files to a new place because we're going to change a few things:
 mkdir iso
 rsync -a mnt/ iso/
 chmod -R u+w iso
-mkdir iso/pool/main/b/broadcom-wl
-cp broadcom-wl-5.100.138.tar.bz2 iso/pool/main/b/broadcom-wl
+cp broadcom-wl-5.100.138.tar.gz iso/pool/main/b/
+cp b43-fwcutter_019-4_amd64.deb iso/pool/main/b/
+cp libiw30t64_30\~pre9-16.1ubuntu2_amd64.deb iso/pool/main/libi/
+cp 'wireless-tools_30~pre9-16.1ubuntu2_amd64.deb' iso/pool/main/w/
 chmod -R u-w iso
 ```
 
@@ -144,20 +153,20 @@ brew install xorriso
 Get the boot image info from the original iso:
 
 ```sh
-xorriso -indev ubuntu-24.04.1-desktop-amd64.iso -report_el_torito as_mkisofs
+xorriso -indev ubuntu-24.04.2-live-server-amd64.iso -report_el_torito as_mkisofs
 ```
 
 Make a note of the options it shows. For me it's:
 
 ```txt
--V 'Ubuntu 24.04.1 LTS amd64'
---modification-date='2024082716232600'
---grub2-mbr --interval:local_fs:0s-15s:zero_mbrpt,zero_gpt:'ubuntu-24.04.1-desktop-amd64.iso'
+-V 'Ubuntu-Server 24.04.2 LTS amd64'
+--modification-date='2025021622492200'
+--grub2-mbr --interval:local_fs:0s-15s:zero_mbrpt,zero_gpt:'ubuntu-24.04.2-live-server-amd64.iso'
 --protective-msdos-label
 -partition_cyl_align off
 -partition_offset 16
 --mbr-force-bootable
--append_partition 2 28732ac11ff8d211ba4b00a0c93ec93b --interval:local_fs:12105120d-12115263d::'ubuntu-24.04.1-desktop-amd64.iso'
+-append_partition 2 28732ac11ff8d211ba4b00a0c93ec93b --interval:local_fs:6264708d-6274851d::'ubuntu-24.04.2-live-server-amd64.iso'
 -appended_part_as_gpt
 -iso_mbr_part_type a2a0d0ebe5b9334487c068b6b72699c7
 -c '/boot.catalog'
@@ -167,7 +176,7 @@ Make a note of the options it shows. For me it's:
 -boot-info-table
 --grub2-boot-info
 -eltorito-alt-boot
--e '--interval:appended_partition_2_start_3026280s_size_10144d:all::'
+-e '--interval:appended_partition_2_start_1566177s_size_10144d:all::'
 -no-emul-boot
 -boot-load-size 10144
 ```
@@ -176,15 +185,15 @@ Now create a new iso; use the options as reported above:
 
 ```sh
 xorriso -as mkisofs \
-    -o ubuntu-24.04.1-desktop-amd64-custom.iso \
-    -V 'Ubuntu 24.04.1 LTS amd64' \
-    --modification-date='2024082716232600' \
-    --grub2-mbr --interval:local_fs:0s-15s:zero_mbrpt,zero_gpt:'ubuntu-24.04.1-desktop-amd64.iso' \
+    -o ubuntu-24.04.2-live-server-amd64-custom.iso \
+    -V 'Ubuntu-Server 24.04.2 LTS amd64' \
+    --modification-date='2025021622492200' \
+    --grub2-mbr --interval:local_fs:0s-15s:zero_mbrpt,zero_gpt:'ubuntu-24.04.2-live-server-amd64.iso' \
     --protective-msdos-label \
     -partition_cyl_align off \
     -partition_offset 16 \
     --mbr-force-bootable \
-    -append_partition 2 28732ac11ff8d211ba4b00a0c93ec93b --interval:local_fs:12105120d-12115263d::'ubuntu-24.04.1-desktop-amd64.iso' \
+    -append_partition 2 28732ac11ff8d211ba4b00a0c93ec93b --interval:local_fs:6264708d-6274851d::'ubuntu-24.04.2-live-server-amd64.iso' \
     -appended_part_as_gpt \
     -iso_mbr_part_type a2a0d0ebe5b9334487c068b6b72699c7 \
     -c '/boot.catalog' \
@@ -194,7 +203,7 @@ xorriso -as mkisofs \
     -boot-info-table \
     --grub2-boot-info \
     -eltorito-alt-boot \
-    -e '--interval:appended_partition_2_start_3026280s_size_10144d:all::' \
+    -e '--interval:appended_partition_2_start_1566177s_size_10144d:all::' \
     -no-emul-boot \
     -boot-load-size 10144 \
     iso/
@@ -218,7 +227,7 @@ Once loaded, let's get some wifi! Open a terminal and:
 # install the tool that can install the firmware
 sudo dpkg -i /cdrom/pool/main/b/b43-fwcutter/b43-fwcutter_1%3a019-11build1_amd64.deb
 # install the firmware
-tar xjvf /cdrom/pool/main/b/broadcom-wl/broadcom-wl-5.100.138.tar.bz2
+tar xzvf /cdrom/pool/main/b/broadcom-wl-5.100.138.tar.gz
 sudo b43-fwcutter -w /lib/firmware broadcom-wl-5.100.138/linux/wl_apsta.o
 sudo modprobe b43
 ```
@@ -226,6 +235,7 @@ sudo modprobe b43
 Set the transmit power:
 
 ```sh
+sudo dpkg -i '/cdrom/pool/main/w/wireless-tools_30~pre9-16.1ubuntu2_amd64.deb'
 # for the actual interface name, do iwconfig. For me it's wlp3s0
 sudo iwconfig wlp3s0 txpower 10dBm
 ```
@@ -233,3 +243,82 @@ sudo iwconfig wlp3s0 txpower 10dBm
 Open settings, turn wifi off/on, and connect to the network you want. It should work now.
 
 With WiFi operational, follow the steps to install Ubuntu.
+
+### Boot into Ubuntu
+
+Boot your laptop, and connect to the internet hopefully.
+
+### Set txpower at boot
+
+You may need to do (although I'm not sure why yet):
+
+```sh
+sudo iwconfig wlp3s0 txpower 10dBm
+```
+
+Then ensure you have everything installed:
+
+```sh
+sudo apt install firmware-b43-installer
+
+sudo apt install linux-firmware
+sudo modprobe b43
+```
+
+To set `txpower` automatically at boot time, do the following:
+
+```sh
+sudo vi /etc/systemd/system/set-wifi-txpower.service
+```
+
+Set the contents to (change `wlp3s0` to the wifi interface name you have):
+
+```txt
+[Unit]
+Description=Set WiFi Transmission Power to 10dBM
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/iwconfig wlp3s0 txpower 10
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start the service:
+
+````sh
+systemctl enable set-wifi-txpower.service
+systemctl start set-wifi-txpower.service
+
+### Audio
+
+
+
+### Touch Bar
+
+```sh
+apt-get install git dkms
+
+cd ~
+echo -e "\n# macbook12-spi-drivers\napplespi\napple_ib_tb\nspi_pxa2xx_platform\nintel_lpss_pci" >> /etc/initramfs-tools/modules
+
+git clone https://github.com/roadrunner2/macbook12-spi-driver.git
+cd ./macbook12-spi-driver
+git checkout touchbar-driver-hid-driver
+dkms add .
+CASPER_GENERATE_UUID=1 dkms install -m applespi -v 0.1 -k $(realpath /boot/vmlinuz | sed 's#/boot/vmlinuz-##g')
+
+# lsinitramfs /boot/initrd.img | grep -i "dkms/apple"
+usr/lib/modules/5.8.0-50-generic/updates/dkms/apple-ib-tb.ko
+usr/lib/modules/5.8.0-50-generic/updates/dkms/apple-ibridge.ko
+usr/lib/modules/5.8.0-50-generic/updates/dkms/applespi.ko
+````
+
+### Keyboard backlight
+
+```
+
+```
