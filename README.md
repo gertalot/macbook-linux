@@ -6,6 +6,7 @@ guarantee anything.
 These instructions are fully based on the following sources:
 
 - [install broadcom wifi drivers](https://askubuntu.com/questions/55868/installing-broadcom-wireless-drivers)
+- [axe Asix usb Ethernet driver](https://manpages.ubuntu.com/manpages/focal/en/man4/axe.4freebsd.html)
 - [roadrunner2's gist](https://gist.github.com/roadrunner2/1289542a748d9a104e7baec6a92f9cd7)
 - [nixaid's guide](https://nixaid.com/linux-on-macbookpro/)
 - [geteltorito](https://github.com/rainer042/geteltorito/) to extract ISO bootimage information
@@ -323,6 +324,34 @@ chmod +x /etc/acpi/lid.sh
 nano /etc/acpi/lid.sh
 ```
 
+### Get Apple USB Ethernet Adapter working
+
+This device shows up as follows in `dmesg`:
+
+```txt
+[699644.767210] asix 1-7:1.0 (unnamed net_device) (uninitialized): PHY [usb-001:019:10] driver [Asix Electronics AX88772A] (irq=POLL)
+[699644.769939] Asix Electronics AX88772A usb-001:019:10: attached PHY driver (mii_bus:phy_addr=usb-001:019:10, irq=POLL)
+[699644.770272] asix 1-7:1.0 eth0: register 'asix' at usb-0000:00:14.0-7, ASIX AX88772 USB 2.0 Ethernet, 00:f7:6f:6f:63:d7
 ```
 
+By default it's called `enx00f76f6f63d7`. Let's rename that to `eth0` and bring the interface up.
+
+`sudo vi /etc/netplan/90-ethernet.yaml` and set the contents to:
+
+```yaml
+network:
+  version: 2
+  ethernets:
+    eth0:
+      match:
+        macaddress: 00:f7:6f:6f:63:d7
+      set-name: eth0
+      dhcp4: true
+```
+
+Then apply:
+
+```sh
+sudo chmod 0600 /etc/netplan/90-ethernet.yaml
+sudo netplan apply
 ```
